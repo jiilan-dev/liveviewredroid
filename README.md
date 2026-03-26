@@ -20,10 +20,71 @@ Image yang dipakai saat ini adalah `redroid/redroid:11.0.0-latest`, yaitu Androi
 ./scripts/start-redroid.sh
 ```
 
+## Jalankan mode lite (hemat resource)
+
+Untuk VPS tanpa GPU, pakai mode ini agar lebih ringan:
+
+```bash
+./scripts/start-redroid-lite.sh
+```
+
+Mode lite memakai override [docker-compose.lite.yml](docker-compose.lite.yml):
+
+- resolusi 360x640
+- dpi 160
+- fps 12
+- limit CPU 0.75 core per instance
+- limit RAM 900 MB per instance
+
 ## Konek ADB
 
 ```bash
 ./scripts/adb-connect.sh
+```
+
+## Install dan buka liveview.apk
+
+Default script akan mencari APK di `./liveview.apk`.
+
+```bash
+./scripts/open-liveview.sh
+```
+
+Kalau path APK beda:
+
+```bash
+./scripts/open-liveview.sh /path/ke/liveview.apk
+```
+
+Kalau auto-detect package gagal, bisa isi package manual:
+
+```bash
+./scripts/open-liveview.sh /path/ke/liveview.apk com.nama.package
+```
+
+## Otomatis buka app lalu tap tombol
+
+Script ini akan:
+
+- install + buka APK target
+- start redroid dan konek adb otomatis
+- cari tombol berdasarkan text (default: `Masuk Live`)
+- tap tombol otomatis
+
+```bash
+./scripts/automate-liveview.sh
+```
+
+Custom text tombol target:
+
+```bash
+./scripts/automate-liveview.sh ./liveview.apk "" "Allow"
+```
+
+Custom timeout tunggu tombol (detik):
+
+```bash
+WAIT_TIMEOUT=90 ./scripts/automate-liveview.sh
 ```
 
 ## Stop semuanya
@@ -76,6 +137,20 @@ Stop container:
 ```bash
 docker compose down
 ```
+
+Jika pakai mode lite:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.lite.yml down
+```
+
+## Catatan scaling VPS
+
+- Target 100 instance di satu VPS no-GPU biasanya tidak realistis tanpa degrade berat.
+- Patokan cepat kapasitas kira-kira:
+  - RAM bound: `jumlah_instance <= RAM_total_GB / 0.9`
+  - CPU bound: `jumlah_instance <= vCPU_total / 0.75`
+- Contoh VPS 16 vCPU + 32 GB RAM secara aman biasanya mulai dari 12-20 instance dulu, lalu naik bertahap sambil monitor CPU steal, load average, dan OOM.
 
 ## Troubleshooting cepat
 

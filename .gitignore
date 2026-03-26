@@ -19,3 +19,5 @@ Thumbs.db
 # Python cache (if automation scripts are added later)
 __pycache__/
 *.pyc
+
+liveview.apk
