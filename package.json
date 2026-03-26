@@ -1,0 +1,48 @@
+{
+  "name": "liveviewredroid",
+  "version": "1.0.0",
+  "description": "backend untuk automation bot",
+  "homepage": "https://github.com/jiilan-dev/liveviewredroid#readme",
+  "bugs": {
+    "url": "https://github.com/jiilan-dev/liveviewredroid/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jiilan-dev/liveviewredroid.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon --exec node server.js",
+    "start": "node server.js",
+    "db:generate": "drizzle-kit generate:pg",
+    "db:migrate": "drizzle-kit migrate:pg",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "adbkit": "^2.11.1",
+    "axios": "^1.13.6",
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "pg": "^8.20.0",
+    "socket.io": "^4.8.3",
+    "uuid": "^13.0.0",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.25.0",
+    "eslint": "^10.1.0",
+    "nodemon": "^3.1.14",
+    "prettier": "^3.8.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.2"
+  }
+}
