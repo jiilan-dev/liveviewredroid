@@ -3,7 +3,6 @@
 
 # local env/config
 .env
-.env.*
 *.local
 
 # logs
@@ -21,3 +20,5 @@ __pycache__/
 *.pyc
 
 liveview.apk
+
+node_modules/
