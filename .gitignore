@@ -1,0 +1,21 @@
+# redroid runtime data
+/data/
+
+# local env/config
+.env
+.env.*
+*.local
+
+# logs
+*.log
+logs/
+
+# editor/OS cache
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Python cache (if automation scripts are added later)
+__pycache__/
+*.pyc
