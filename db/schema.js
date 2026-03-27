@@ -1,6 +1,6 @@
 const { pgTable, serial, varchar, timestamp, text } = require('drizzle-orm/pg-core');
 
-export const users = pgTable('users', {
+const users = pgTable('users', {
   id: serial('id').primaryKey(),
   username: varchar('username', { length: 255 }).notNull().unique(),
   password: varchar('password', { length: 255 }).notNull(),
@@ -9,7 +9,7 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-export const redroidInstances = pgTable('redroid_instances', {
+const redroidInstances = pgTable('redroid_instances', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   port: serial('port').notNull().unique(),
@@ -19,7 +19,7 @@ export const redroidInstances = pgTable('redroid_instances', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-export const automationLogs = pgTable('automation_logs', {
+const automationLogs = pgTable('automation_logs', {
   id: serial('id').primaryKey(),
   redroidId: serial('redroid_id').references(() => redroidInstances.id),
   action: varchar('action', { length: 255 }).notNull(),
@@ -27,3 +27,5 @@ export const automationLogs = pgTable('automation_logs', {
   details: text('details'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+module.exports = { users, redroidInstances, automationLogs };
