@@ -4,6 +4,10 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
+const swaggerUi = require('swagger-ui-express');
+const yaml = require('js-yaml');
+const fs = require('fs');
+const path = require('path');
 const { db, pool } = require('./db');
 const { initDefaultUser } = require('./controllers/auth.controller');
 
@@ -26,6 +30,18 @@ app.use('/api/auth', authRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/app', appRoutes);
 app.use('/api/automation', automationRoutes);
+
+// Swagger UI
+const swaggerDocument = yaml.load(fs.readFileSync(path.join(__dirname, 'openapi.yml'), 'utf8'));
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+  customSiteTitle: 'LiveView Redroid API',
+  swaggerOptions: { persistAuthorization: true },
+}));
+app.get('/api/docs.json', (req, res) => res.json(swaggerDocument));
+app.get('/api/docs.yaml', (req, res) => {
+  res.setHeader('Content-Type', 'text/yaml');
+  res.send(fs.readFileSync(path.join(__dirname, 'openapi.yml'), 'utf8'));
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -58,16 +74,9 @@ const startServer = async () => {
     // Start Express server
     app.listen(PORT, () => {
       console.log(`✓ Server running on http://localhost:${PORT}`);
-      console.log('\n📚 API Endpoints:');
-      console.log('   POST   /api/auth/login                - Login with credentials');
-      console.log('   POST   /api/auth/init                 - Initialize default user');
-      console.log('   GET    /api/system/status             - Check system status');
-      console.log('   POST   /api/system/start              - Start all systems');
-      console.log('   POST   /api/system/stop               - Stop all systems');
-      console.log('   POST   /api/app/launch                - Launch app on device');
-      console.log('   POST   /api/automation/execute        - Run full automation');
-      console.log('   POST   /api/automation/tap-element    - Tap UI element');
-      console.log('   GET    /api/health                    - Health check\n');
+      console.log(`✓ Swagger UI   → http://localhost:${PORT}/api/docs`);
+      console.log(`✓ OpenAPI JSON → http://localhost:${PORT}/api/docs.json`);
+      console.log(`✓ OpenAPI YAML → http://localhost:${PORT}/api/docs.yaml`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

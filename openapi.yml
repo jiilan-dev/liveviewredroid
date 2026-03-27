@@ -1,0 +1,552 @@
+openapi: 3.0.3
+
+info:
+  title: LiveView Redroid API
+  version: 1.0.0
+  description: |
+    REST API untuk automation bot LiveView berbasis Android emulator (redroid).
+
+    **Authentication**: Gunakan endpoint `/api/auth/login` untuk mendapatkan JWT token, 
+    lalu gunakan di header `Authorization: Bearer <token>` untuk semua endpoint yang membutuhkan auth.
+
+servers:
+  - url: http://localhost:5000
+    description: Local Development
+
+tags:
+  - name: Auth
+    description: Login dan inisialisasi user
+  - name: System
+    description: Kontrol container redroid dan ADB
+  - name: App
+    description: Install dan launch APK di emulator
+  - name: Automation
+    description: Eksekusi otomasi UI di emulator
+  - name: Health
+    description: Status server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid credentials"
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: admin
+        password:
+          type: string
+          format: password
+          example: admin123
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            username:
+              type: string
+              example: admin
+            role:
+              type: string
+              example: admin
+
+    SystemStatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: online
+        adb:
+          type: string
+          enum: [connected, disconnected]
+          example: connected
+        docker:
+          type: string
+          enum: [available, unavailable]
+          example: available
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-03-27T00:00:00.000Z"
+
+    StartSystemRequest:
+      type: object
+      properties:
+        redroidCount:
+          type: integer
+          minimum: 1
+          default: 1
+          description: Jumlah instance redroid yang ingin dijalankan
+          example: 2
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation completed successfully"
+        timestamp:
+          type: string
+          format: date-time
+
+    LaunchAppRequest:
+      type: object
+      properties:
+        apkPath:
+          type: string
+          description: Path ke file APK (default dari env LIVEVIEW_APK_PATH)
+          example: "./liveview.apk"
+        packageName:
+          type: string
+          description: Package name Android (opsional, auto-detect kalau kosong)
+          example: "com.example.liveview"
+        serialPort:
+          type: string
+          description: ADB serial target device (default dari env ADB_SERIAL)
+          example: "localhost:5555"
+
+    LaunchAppResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "App launched successfully"
+        apk:
+          type: string
+          example: "./liveview.apk"
+        serial:
+          type: string
+          example: "localhost:5555"
+        timestamp:
+          type: string
+          format: date-time
+
+    ExecuteAutomationRequest:
+      type: object
+      properties:
+        apkPath:
+          type: string
+          description: Path ke file APK
+          example: "./liveview.apk"
+        packageName:
+          type: string
+          description: Package name Android (opsional)
+          example: "com.example.liveview"
+        buttonText:
+          type: string
+          description: Teks tombol yang akan di-tap
+          default: "Masuk Live"
+          example: "Masuk Live"
+        timeout:
+          type: integer
+          description: Maksimum waktu tunggu tombol muncul (detik)
+          default: 60
+          example: 90
+        serialPort:
+          type: string
+          description: ADB serial target device
+          example: "localhost:5555"
+
+    ExecuteAutomationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Automation executed successfully"
+        details:
+          type: object
+          properties:
+            apk:
+              type: string
+              example: "./liveview.apk"
+            buttonText:
+              type: string
+              example: "Masuk Live"
+            timeout:
+              type: integer
+              example: 60
+            serial:
+              type: string
+              example: "localhost:5555"
+        timestamp:
+          type: string
+          format: date-time
+
+    TapElementRequest:
+      type: object
+      description: Minimal isi salah satu dari text, resourceId, atau contentDesc
+      properties:
+        text:
+          type: string
+          description: Exact text elemen UI (case-insensitive)
+          example: "Masuk Live"
+        resourceId:
+          type: string
+          description: Android resource-id elemen
+          example: "com.example.app:id/btn_login"
+        contentDesc:
+          type: string
+          description: Content description elemen
+          example: "Login button"
+        timeout:
+          type: integer
+          description: Maksimum waktu tunggu elemen muncul (detik)
+          default: 60
+          example: 60
+        serialPort:
+          type: string
+          description: ADB serial target device
+          example: "localhost:5555"
+
+  responses:
+    Unauthorized:
+      description: Token tidak ada atau tidak valid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Invalid token"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Error message detail"
+
+paths:
+  # ─── AUTH ─────────────────────────────────────────────────────
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      description: Login dengan username dan password, mendapat JWT token untuk request selanjutnya.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              default:
+                summary: Login admin default
+                value:
+                  username: admin
+                  password: admin123
+      responses:
+        '200':
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Username atau password tidak diisi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Username and password required"
+        '401':
+          description: Kredensial tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Invalid credentials"
+
+  /api/auth/init:
+    post:
+      tags: [Auth]
+      summary: Inisialisasi user default
+      description: Membuat user admin default (admin/admin123) kalau belum ada. Bisa dipanggil ulang tanpa efek samping.
+      responses:
+        '200':
+          description: User berhasil diinisialisasi atau sudah ada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Default user initialized"
+
+  # ─── SYSTEM ───────────────────────────────────────────────────
+  /api/system/status:
+    get:
+      tags: [System]
+      summary: Status sistem
+      description: Cek status koneksi ADB dan ketersediaan Docker.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Status sistem
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatusResponse'
+        '401':
+          description: Token tidak ada atau tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/system/start:
+    post:
+      tags: [System]
+      summary: Start semua sistem
+      description: |
+        Menjalankan container redroid via Docker Compose, lalu melakukan ADB connect.
+        Proses ini bisa memakan waktu beberapa detik sampai container siap.
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartSystemRequest'
+            examples:
+              single:
+                summary: 1 instance (default)
+                value:
+                  redroidCount: 1
+              multiple:
+                summary: 2 instance
+                value:
+                  redroidCount: 2
+      responses:
+        '200':
+          description: Sistem berhasil dijalankan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Started 1 redroid instance(s)"
+                timestamp: "2026-03-27T00:00:00.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/system/stop:
+    post:
+      tags: [System]
+      summary: Stop semua sistem
+      description: Menutup koneksi ADB, mematikan ADB server, dan menjalankan `docker compose down`.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Semua sistem berhasil dihentikan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "All systems stopped"
+                timestamp: "2026-03-27T00:00:00.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── APP ──────────────────────────────────────────────────────
+  /api/app/launch:
+    post:
+      tags: [App]
+      summary: Launch app di emulator
+      description: |
+        Install APK ke device ADB yang terhubung, lalu membuka aplikasinya.
+
+        - Jika `packageName` tidak diisi, system akan mencoba auto-detect dari APK.
+        - Jika `serialPort` tidak diisi, dipakai nilai dari env `ADB_SERIAL` (default: `localhost:5555`).
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LaunchAppRequest'
+            examples:
+              default_apk:
+                summary: Pakai APK default
+                value: {}
+              custom_apk:
+                summary: Custom APK dan package
+                value:
+                  apkPath: "./liveview.apk"
+                  packageName: "com.example.liveview"
+                  serialPort: "localhost:5555"
+      responses:
+        '200':
+          description: App berhasil diluncurkan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LaunchAppResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── AUTOMATION ───────────────────────────────────────────────
+  /api/automation/execute:
+    post:
+      tags: [Automation]
+      summary: Jalankan full otomasi
+      description: |
+        Menjalankan flow lengkap: start redroid → connect ADB → install & buka APK → tap tombol target.
+
+        Menggunakan `buttonText` untuk mencari elemen UI dan tap otomatis via `uiautomator`.
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteAutomationRequest'
+            examples:
+              default:
+                summary: Tap tombol "Masuk Live" (default)
+                value:
+                  buttonText: "Masuk Live"
+                  timeout: 60
+              custom_button:
+                summary: Custom tombol dengan timeout lebih lama
+                value:
+                  apkPath: "./liveview.apk"
+                  buttonText: "Allow"
+                  timeout: 120
+                  serialPort: "localhost:5555"
+      responses:
+        '200':
+          description: Otomasi berhasil dieksekusi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecuteAutomationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/automation/tap-element:
+    post:
+      tags: [Automation]
+      summary: Tap elemen UI spesifik
+      description: |
+        Mencari elemen UI di layar emulator (via `uiautomator dump`) berdasarkan selector, lalu men-tap-nya.
+
+        Selector diprioritaskan: `resourceId` → `contentDesc` → `text`.
+        Minimal isi satu selector.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TapElementRequest'
+            examples:
+              by_text:
+                summary: Tap by text
+                value:
+                  text: "Masuk Live"
+                  timeout: 60
+              by_resource_id:
+                summary: Tap by resource-id
+                value:
+                  resourceId: "com.example.app:id/btn_login"
+                  serialPort: "localhost:5555"
+              by_content_desc:
+                summary: Tap by content-desc
+                value:
+                  contentDesc: "Login button"
+      responses:
+        '200':
+          description: Elemen berhasil di-tap
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Element tapped successfully"
+                serial: "localhost:5555"
+                timestamp: "2026-03-27T00:00:00.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── HEALTH ───────────────────────────────────────────────────
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Cek apakah server sedang berjalan.
+      responses:
+        '200':
+          description: Server sehat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  timestamp:
+                    type: string
+                    format: date-time
