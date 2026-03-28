@@ -1,27 +1,49 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+COUNT="${1:-1}"
+
 if ! command -v docker >/dev/null 2>&1; then
   echo "Docker belum terpasang. Install Docker dulu ya."
   exit 1
 fi
 
-if ! docker compose version >/dev/null 2>&1; then
-  echo "Docker Compose plugin belum tersedia."
-  echo "Pastikan perintah 'docker compose' bisa dipakai."
-  exit 1
-fi
+echo "Menjalankan $COUNT instance redroid..."
 
-echo "Menjalankan redroid..."
-docker compose up -d
+for i in $(seq 1 "$COUNT"); do
+  PORT=$((5554 + i))
+  NAME="redroid-$i"
+  DATA_DIR="./data/instance-$i"
 
-echo "Menunggu service siap..."
-sleep 6
+  mkdir -p "$DATA_DIR"
 
-docker compose ps
+  # Hapus container lama jika ada
+  if docker ps -a --format '{{.Names}}' | grep -q "^${NAME}$"; then
+    echo "Container $NAME sudah ada, replace..."
+    docker rm -f "$NAME" >/dev/null 2>&1
+  fi
 
-echo
-echo "Langkah berikutnya:"
-echo "1) Install adb di host (android-tools/adb)"
-echo "2) Jalankan: ./scripts/adb-connect.sh"
-echo "3) Buka UI dengan: scrcpy -s localhost:5555"
+  echo "Starting $NAME → host port $PORT..."
+  docker run -d \
+    --name "$NAME" \
+    --privileged \
+    --restart unless-stopped \
+    -p "$PORT:5555" \
+    -v "$(pwd)/$DATA_DIR:/data" \
+    redroid/redroid:11.0.0-latest \
+    androidboot.redroid_width=720 \
+    androidboot.redroid_height=1280 \
+    androidboot.redroid_dpi=320 \
+    androidboot.redroid_gpu_mode=guest
+done
+
+echo ""
+echo "Menunggu instance siap (8 detik)..."
+sleep 8
+
+echo ""
+echo "Instance yang berjalan:"
+docker ps --filter "name=redroid-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+echo ""
+echo "Selanjutnya: ./scripts/adb-connect.sh $COUNT"

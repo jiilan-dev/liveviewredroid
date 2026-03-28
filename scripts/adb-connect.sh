@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+COUNT="${1:-1}"
+
 if ! command -v adb >/dev/null 2>&1; then
   echo "adb belum terpasang."
   echo "Ubuntu/Debian: sudo apt install -y adb"
@@ -12,11 +14,15 @@ echo "Restart adb server..."
 adb kill-server >/dev/null 2>&1 || true
 adb start-server >/dev/null
 
-echo "Menghubungkan ke redroid..."
-adb connect localhost:5555
+for i in $(seq 1 "$COUNT"); do
+  PORT=$((5554 + i))
+  echo "Menghubungkan ke redroid-$i (localhost:$PORT)..."
+  adb connect "localhost:$PORT" || echo "  Gagal konek localhost:$PORT, coba lagi manual."
+done
 
+echo ""
 echo "Daftar device:"
 adb devices
 
-echo
-echo "Kalau status device sudah 'device', redroid siap dipakai."
+echo ""
+echo "Semua instance sudah terhubung via ADB."

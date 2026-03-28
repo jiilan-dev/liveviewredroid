@@ -2,13 +2,22 @@ const { runCommand } = require('../lib/utils');
 
 const getStatus = async (req, res) => {
   try {
-    const adbStatus = await runCommand('adb devices').catch(() => 'unavailable');
-    const dockerStatus = await runCommand('docker ps').catch(() => 'unavailable');
+    const adbOutput = await runCommand('adb devices').catch(() => '');
+    const dockerOutput = await runCommand(
+      'docker ps --filter "name=redroid" --format "{{.Names}}\t{{.Status}}\t{{.Ports}}"'
+    ).catch(() => '');
+
+    const runningInstances = dockerOutput
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
 
     res.json({
       status: 'online',
-      adb: adbStatus.includes('device') ? 'connected' : 'disconnected',
-      docker: dockerStatus ? 'available' : 'unavailable',
+      adb: adbOutput.includes('\tdevice') ? 'connected' : 'disconnected',
+      docker: 'available',
+      instanceCount: runningInstances.length,
+      instances: runningInstances,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -18,19 +27,24 @@ const getStatus = async (req, res) => {
 
 const startSystem = async (req, res) => {
   try {
-    const redroidCount = req.body.redroidCount || parseInt(process.env.REDROID_COUNT || '1');
+    const count = Math.min(
+      Math.max(parseInt(req.body.redroidCount) || parseInt(process.env.REDROID_COUNT || '1'), 1),
+      10
+    );
 
-    // Start redroid
-    console.log(`Starting ${redroidCount} redroid instance(s)...`);
-    await runCommand('./scripts/start-redroid.sh');
+    console.log(`Starting ${count} instance(s)...`);
+    await runCommand(`./scripts/start-redroid.sh ${count}`);
 
-    // Connect ADB
     console.log('Connecting ADB...');
-    await runCommand('./scripts/adb-connect.sh');
+    await runCommand(`./scripts/adb-connect.sh ${count}`);
+
+    const ports = Array.from({ length: count }, (_, i) => 5555 + i);
 
     res.json({
       success: true,
-      message: `Started ${redroidCount} redroid instance(s)`,
+      message: `Started ${count} instance(s)`,
+      count,
+      ports,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
