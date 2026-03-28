@@ -23,12 +23,66 @@ const getStatus = async (req, res) => {
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const runningPorts = runningInstances
+      .map((line) => line.split('\t')[0])
+      .map((name) => {
+        const match = name.match(/redroid-(\d+)/);
+        if (!match) return null;
+        return 5554 + parseInt(match[1], 10);
+      })
+      .filter((p) => Number.isInteger(p));
+
+    const adbDeviceLines = adbOutput
+      .split('\n')
+      .slice(1)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .filter((s) => !s.startsWith('*'))
+      .map((line) => {
+        const [serial, state = 'unknown'] = line.split(/\s+/);
+        return { serial, state };
+      });
+
+    const adbMap = new Map(adbDeviceLines.map((d) => [d.serial, d.state]));
+
+    const adbInstances = runningPorts.map((port) => {
+      const serial = `localhost:${port}`;
+      const adbState = adbMap.get(serial) || 'disconnected';
+      return {
+        port,
+        serial,
+        adbState,
+        ready: adbState === 'device',
+      };
+    });
+
+    // Include connected localhost devices that are not mapped to a running container.
+    const extraAdb = adbDeviceLines
+      .filter((d) => d.serial.startsWith('localhost:'))
+      .map((d) => {
+        const [, portText] = d.serial.split(':');
+        const port = Number(portText);
+        return {
+          port,
+          serial: d.serial,
+          adbState: d.state,
+          ready: d.state === 'device',
+        };
+      })
+      .filter((d) => Number.isInteger(d.port))
+      .filter((d) => !adbInstances.some((i) => i.serial === d.serial));
+
+    const mergedAdbInstances = [...adbInstances, ...extraAdb].sort((a, b) => a.port - b.port);
+    const adbReadyCount = mergedAdbInstances.filter((i) => i.ready).length;
+
     res.json({
       status: 'online',
       adb: adbOutput.includes('\tdevice') ? 'connected' : 'disconnected',
       docker: 'available',
       instanceCount: runningInstances.length,
       instances: runningInstances,
+      adbReadyCount,
+      adbInstances: mergedAdbInstances,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
