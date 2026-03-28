@@ -1,3 +1,4 @@
+const { spawn } = require('child_process');
 const { runCommand } = require('../lib/utils');
 const { db } = require('../db');
 const { redroidInstances, automationLogs } = require('../db/schema');
@@ -118,4 +119,34 @@ const getInstances = async (req, res) => {
   }
 };
 
-module.exports = { getStatus, startSystem, stopSystem, getOverview, getInstances };
+const getScreenshot = (req, res) => {
+  const port = parseInt(req.params.port, 10);
+  if (isNaN(port) || port < 5555 || port > 5600) {
+    return res.status(400).json({ error: 'Invalid port' });
+  }
+
+  const proc = spawn('adb', ['-s', `localhost:${port}`, 'exec-out', 'screencap', '-p']);
+  const chunks = [];
+  let stderr = '';
+
+  proc.stdout.on('data', (chunk) => chunks.push(chunk));
+  proc.stderr.on('data', (d) => { stderr += d.toString(); });
+
+  proc.on('error', (err) => {
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
+
+  proc.on('close', (code) => {
+    if (code !== 0 || chunks.length === 0) {
+      if (!res.headersSent) res.status(500).json({ error: stderr || 'screencap failed' });
+      return;
+    }
+    const buf = Buffer.concat(chunks);
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'no-cache, no-store');
+    res.setHeader('Content-Length', buf.length);
+    res.end(buf);
+  });
+};
+
+module.exports = { getStatus, startSystem, stopSystem, getOverview, getInstances, getScreenshot };
