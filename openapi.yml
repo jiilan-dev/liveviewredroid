@@ -90,10 +90,71 @@ components:
           type: string
           enum: [available, unavailable]
           example: available
+        instanceCount:
+          type: integer
+          example: 2
+        instances:
+          type: array
+          items:
+            type: string
+          example: ["redroid-1\tUp 2 minutes\t0.0.0.0:5555->5555/tcp"]
         timestamp:
           type: string
           format: date-time
           example: "2026-03-27T00:00:00.000Z"
+
+    SystemOverviewResponse:
+      type: object
+      properties:
+        activeInstances:
+          type: integer
+          example: 2
+        totalAutomations:
+          type: integer
+          example: 24
+        successRate:
+          type: string
+          example: "95.8%"
+        uptime:
+          type: string
+          example: "3d 14h 22m"
+        timestamp:
+          type: string
+          format: date-time
+
+    RedroidInstance:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "redroid-1"
+        port:
+          type: integer
+          example: 5555
+        status:
+          type: string
+          example: "running"
+        appPackage:
+          type: string
+          nullable: true
+          example: "com.example.liveview"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    InstancesResponse:
+      type: object
+      properties:
+        instances:
+          type: array
+          items:
+            $ref: '#/components/schemas/RedroidInstance'
 
     StartSystemRequest:
       type: object
@@ -335,6 +396,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  /api/system/overview:
+    get:
+      tags: [System]
+      summary: Statistik overview sistem
+      description: Mengembalikan agregat stats — active instances (dari Docker), total automations, success rate, dan server uptime.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Overview stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemOverviewResponse'
+              example:
+                activeInstances: 2
+                totalAutomations: 24
+                successRate: "95.8%"
+                uptime: "3d 14h 22m"
+                timestamp: "2026-03-27T00:00:00.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/system/instances:
+    get:
+      tags: [System]
+      summary: Daftar instance dari database
+      description: Mengambil semua baris dari tabel `redroid_instances` di database, diurutkan by id.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar instances
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstancesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
   /api/system/start:
     post:
