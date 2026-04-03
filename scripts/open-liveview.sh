@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Default APK path: current folder (./liveview.apk)
-APK_PATH="${1:-./liveview.apk}"
+# Default APK path: current folder (./shopee.apk)
+APK_PATH="${1:-./shopee.apk}"
 PACKAGE_NAME="${2:-}"
 ADB_SERIAL="${ADB_SERIAL:-localhost:5555}"
 
@@ -19,7 +19,7 @@ fi
 
 if [[ ! -f "$APK_PATH" ]]; then
   echo "APK tidak ditemukan di: $APK_PATH"
-  echo "Contoh pakai path manual: ./scripts/open-liveview.sh /path/ke/liveview.apk"
+  echo "Contoh pakai path manual: ./scripts/open-liveview.sh /path/ke/shopee.apk"
   exit 1
 fi
 
@@ -104,7 +104,9 @@ if [[ -z "$PACKAGE_NAME" ]]; then
 fi
 
 if [[ -z "$PACKAGE_NAME" ]]; then
-  PACKAGE_NAME="$(adb_cmd shell pm list packages | tr -d '\r' | sed 's/^package://' | grep -i 'liveview' | head -n1 || true)"
+  APK_BASENAME="$(basename "$APK_PATH")"
+  APK_KEYWORD="${APK_BASENAME%.apk}"
+  PACKAGE_NAME="$(adb_cmd shell pm list packages | tr -d '\r' | sed 's/^package://' | grep -i "$APK_KEYWORD" | head -n1 || true)"
 fi
 
 if [[ -z "$PACKAGE_NAME" ]]; then
@@ -117,4 +119,4 @@ fi
 echo "Membuka app package: $PACKAGE_NAME"
 launch_app "$PACKAGE_NAME"
 
-echo "Aplikasi LiveView sudah dicoba dibuka."
+echo "Aplikasi target sudah dicoba dibuka."

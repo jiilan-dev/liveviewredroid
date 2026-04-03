@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APK_PATH="${1:-./liveview.apk}"
+APK_PATH="${1:-./shopee.apk}"
 PACKAGE_NAME="${2:-}"
 BUTTON_TEXT="${3:-Masuk Live}"
 ADB_SERIAL="${ADB_SERIAL:-localhost:5555}"

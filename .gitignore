@@ -20,5 +20,6 @@ __pycache__/
 *.pyc
 
 liveview.apk
+shopee.apk
 
 node_modules/

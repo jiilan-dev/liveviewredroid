@@ -19,7 +19,7 @@ const getRunningInstances = async () => {
 const launchApp = async (req, res) => {
   try {
     const { apkPath, packageName } = req.body;
-    const apk = apkPath || process.env.LIVEVIEW_APK_PATH || './liveview.apk';
+    const apk = apkPath || process.env.LIVEVIEW_APK_PATH || './shopee.apk';
 
     const instances = await getRunningInstances();
     if (instances.length === 0) {

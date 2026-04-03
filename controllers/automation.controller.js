@@ -44,7 +44,7 @@ const tryLog = async (port, action, status, details) => {
 const executeAutomation = async (req, res) => {
   try {
     const { apkPath, packageName, buttonText, timeout } = req.body;
-    const apk = apkPath || process.env.LIVEVIEW_APK_PATH || './liveview.apk';
+    const apk = apkPath || process.env.LIVEVIEW_APK_PATH || './shopee.apk';
     const text = buttonText || 'Masuk Live';
     const wait = Number(timeout) || 60;
 
