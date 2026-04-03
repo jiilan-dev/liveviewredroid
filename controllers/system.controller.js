@@ -203,4 +203,45 @@ const getScreenshot = (req, res) => {
   });
 };
 
-module.exports = { getStatus, startSystem, stopSystem, getOverview, getInstances, getScreenshot };
+const sendInput = async (req, res) => {
+  const port = parseInt(req.params.port, 10);
+  if (isNaN(port) || port < 5555 || port > 5600) {
+    return res.status(400).json({ error: 'Invalid port' });
+  }
+
+  const { type = 'tap', x, y, x2, y2, duration, text } = req.body;
+  const serial = `localhost:${port}`;
+
+  try {
+    let cmd;
+    switch (type) {
+      case 'tap':
+        if (typeof x !== 'number' || typeof y !== 'number') {
+          return res.status(400).json({ error: 'x and y are required for tap' });
+        }
+        cmd = `adb -s ${serial} shell input tap ${Math.round(x)} ${Math.round(y)}`;
+        break;
+      case 'swipe':
+        if ([x, y, x2, y2].some((v) => typeof v !== 'number')) {
+          return res.status(400).json({ error: 'x, y, x2, y2 are required for swipe' });
+        }
+        cmd = `adb -s ${serial} shell input swipe ${Math.round(x)} ${Math.round(y)} ${Math.round(x2)} ${Math.round(y2)} ${Math.round(duration || 300)}`;
+        break;
+      case 'text':
+        if (!text) {
+          return res.status(400).json({ error: 'text is required for text input' });
+        }
+        cmd = `adb -s ${serial} shell input text ${JSON.stringify(text)}`;
+        break;
+      default:
+        return res.status(400).json({ error: 'Unknown input type' });
+    }
+
+    await runCommand(cmd);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = { getStatus, startSystem, stopSystem, getOverview, getInstances, getScreenshot, sendInput };
