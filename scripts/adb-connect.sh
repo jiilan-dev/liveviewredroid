@@ -3,6 +3,7 @@ set -euo pipefail
 
 COUNT="${1:-1}"
 
+
 if ! command -v adb >/dev/null 2>&1; then
   echo "adb belum terpasang."
   echo "Ubuntu/Debian: sudo apt install -y adb"
@@ -14,69 +15,73 @@ echo "Restart adb server..."
 adb kill-server >/dev/null 2>&1 || true
 adb start-server >/dev/null
 
-for i in $(seq 1 "$COUNT"); do
-  PORT=$((5554 + i))
-  SERIAL="localhost:$PORT"
-  echo "Menghubungkan ke redroid-$i ($SERIAL)..."
-  adb connect "$SERIAL" || { echo "  Gagal konek $SERIAL, coba lagi manual."; continue; }
+# Function to setup a single instance (runs in background)
+setup_instance() {
+  local i="$1"
+  local PORT=$((5554 + i))
+  local SERIAL="localhost:$PORT"
 
-  # Tunggu device ready
-  echo "  Menunggu device ready..."
+  echo "[$i] Connecting to redroid-$i ($SERIAL)..."
+  adb connect "$SERIAL" || { echo "[$i] Failed to connect $SERIAL"; return 1; }
+
+  echo "[$i] Waiting for device..."
   adb -s "$SERIAL" wait-for-device 2>/dev/null || true
   sleep 2
 
-  # Setup internet: DNS + disable captive portal
-  echo "  Setup internet untuk $SERIAL..."
-  adb -s "$SERIAL" shell "setprop net.dns1 8.8.8.8" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop net.dns2 8.8.4.4" 2>/dev/null || true
-  adb -s "$SERIAL" shell "settings put global captive_portal_detection_enabled 0" 2>/dev/null || true
-  adb -s "$SERIAL" shell "settings put global captive_portal_mode 0" 2>/dev/null || true
-  adb -s "$SERIAL" shell "ndc resolver setnetdns 100 '' 8.8.8.8 8.8.4.4" 2>/dev/null || true
-  echo "  ✓ redroid-$i internet configured"
+  echo "[$i] Applying runtime anti-detection props..."
 
-  # Anti-detection: override properties that can't be set at boot
-  echo "  Applying anti-detection props..."
+  # Only set WRITABLE props here — ro.* are handled by /data/local.prop at boot
+  adb -s "$SERIAL" shell "
+    setprop net.dns1 8.8.8.8;
+    setprop net.dns2 8.8.4.4;
+    settings put global captive_portal_detection_enabled 0;
+    settings put global captive_portal_mode 0;
+    ndc resolver setnetdns 100 '' 8.8.8.8 8.8.4.4;
 
-  # Hide root/emulator indicators
-  adb -s "$SERIAL" shell "setprop ro.debuggable 0" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop ro.secure 1" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop ro.build.type user" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop ro.build.tags release-keys" 2>/dev/null || true
+    setprop gsm.operator.alpha Telkomsel;
+    setprop gsm.operator.numeric 51010;
+    setprop gsm.operator.iso-country id;
+    setprop gsm.sim.operator.alpha Telkomsel;
+    setprop gsm.sim.operator.numeric 51010;
+    setprop gsm.sim.operator.iso-country id;
+    setprop gsm.sim.state READY;
 
-  # Disable emulator detection signals
-  adb -s "$SERIAL" shell "setprop ro.kernel.qemu 0" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop ro.kernel.qemu.gles 0" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop init.svc.qemud stopped" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop ro.hardware.chipname mt6765" 2>/dev/null || true
+    setprop persist.sys.timezone Asia/Jakarta;
+    settings put global auto_time_zone 0;
+    settings put global development_settings_enabled 0;
+    settings put global adb_enabled 1;
+    setprop persist.sys.language id;
+    setprop persist.sys.country ID;
+    setprop persist.sys.locale id-ID;
+  " 2>/dev/null || true
 
-  # Fake network operator (Telkomsel Indonesia)
-  adb -s "$SERIAL" shell "setprop gsm.operator.alpha Telkomsel" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop gsm.operator.numeric 51010" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop gsm.operator.iso-country id" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop gsm.sim.operator.alpha Telkomsel" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop gsm.sim.operator.numeric 51010" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop gsm.sim.operator.iso-country id" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop gsm.sim.state READY" 2>/dev/null || true
+  echo "[$i] ✓ redroid-$i ready"
+}
 
-  # Set timezone to Asia/Jakarta
-  adb -s "$SERIAL" shell "setprop persist.sys.timezone Asia/Jakarta" 2>/dev/null || true
-  adb -s "$SERIAL" shell "settings put global auto_time_zone 0" 2>/dev/null || true
+# Export function for subshells
+export -f setup_instance
 
-  # Disable developer options indicators
-  adb -s "$SERIAL" shell "settings put global development_settings_enabled 0" 2>/dev/null || true
-  adb -s "$SERIAL" shell "settings put global adb_enabled 1" 2>/dev/null || true
+# Run all instance setups in parallel
+PIDS=()
+for i in $(seq 1 "$COUNT"); do
+  setup_instance "$i" &
+  PIDS+=($!)
+done
 
-  # Set locale to Indonesian
-  adb -s "$SERIAL" shell "setprop persist.sys.language id" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop persist.sys.country ID" 2>/dev/null || true
-  adb -s "$SERIAL" shell "setprop persist.sys.locale id-ID" 2>/dev/null || true
-
-  echo "  ✓ redroid-$i anti-detection configured"
+# Wait for all background jobs
+FAILED=0
+for pid in "${PIDS[@]}"; do
+  wait "$pid" || ((FAILED++))
 done
 
 echo ""
 echo "Daftar device:"
 adb devices
+
+if [ "$FAILED" -gt 0 ]; then
+  echo ""
+  echo "Warning: $FAILED instance(s) had issues during setup."
+fi
 
 echo ""
 echo "Semua instance sudah terhubung via ADB."

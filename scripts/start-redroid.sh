@@ -54,6 +54,14 @@ for i in $(seq 1 "$COUNT"); do
 
   echo "  Device: $DEVICE_BRAND $DEVICE_MODEL ($DEVICE_NAME)"
 
+  # Write local.prop for props not in any build.prop
+  # (local.prop is read on debuggable builds — which Redroid is)
+  cat > "$(pwd)/$DATA_DIR/local.prop" <<PROPS
+ro.serialno=$FAKE_SERIAL
+ro.boot.serialno=$FAKE_SERIAL
+ro.hardware.chipname=$DEVICE_HARDWARE
+PROPS
+
   docker run -d \
     --name "$NAME" \
     --privileged \
@@ -66,44 +74,45 @@ for i in $(seq 1 "$COUNT"); do
     androidboot.redroid_width=720 \
     androidboot.redroid_height=1280 \
     androidboot.redroid_dpi=320 \
-    androidboot.redroid_gpu_mode=guest \
-    \
-    ro.product.brand="$DEVICE_BRAND" \
-    ro.product.manufacturer="$DEVICE_MANUFACTURER" \
-    ro.product.model="$DEVICE_MODEL" \
-    ro.product.name="$DEVICE_NAME" \
-    ro.product.device="$DEVICE_DEVICE" \
-    ro.build.product="$DEVICE_PRODUCT" \
-    ro.hardware="$DEVICE_HARDWARE" \
-    ro.board.platform="$DEVICE_PLATFORM" \
-    ro.product.board="$DEVICE_BOARD" \
-    ro.build.fingerprint="$DEVICE_FINGERPRINT" \
-    ro.build.description="$DEVICE_DESCRIPTION" \
-    ro.build.version.incremental="$DEVICE_INCREMENTAL" \
-    ro.build.version.release="$DEVICE_RELEASE" \
-    ro.build.version.sdk="$DEVICE_SDK" \
-    ro.build.version.security_patch="$DEVICE_SECURITY_PATCH" \
-    ro.build.display.id="$DEVICE_BUILD_ID" \
-    ro.build.id="$DEVICE_BUILD_ID" \
-    ro.build.type="$DEVICE_TYPE" \
-    ro.build.tags="$DEVICE_TAGS" \
-    ro.serialno="$FAKE_SERIAL" \
-    ro.boot.serialno="$FAKE_SERIAL" \
-    \
-    ro.debuggable=0 \
-    ro.secure=1 \
-    ro.adb.secure=0 \
-    persist.sys.usb.config=adb \
-    ro.build.selinux=1
+    androidboot.redroid_gpu_mode=guest
 done
 
 echo ""
-echo "Menunggu instance siap (8 detik)..."
-sleep 8
+echo "Semua container dimulai. Menunggu boot awal..."
+
+# Wait for containers to be running (max 30s)
+for attempt in $(seq 1 15); do
+  RUNNING=$(docker ps --filter "name=redroid-" --filter "status=running" --format "{{.Names}}" | wc -l)
+  if [ "$RUNNING" -ge "$COUNT" ]; then
+    echo "All $COUNT container(s) running."
+    break
+  fi
+  echo "  Waiting... ($RUNNING/$COUNT running)"
+  sleep 2
+done
+
+# Spoof device identity by patching build.prop, then restart containers
+echo ""
+echo "Applying device spoofing..."
+for i in $(seq 1 "$COUNT"); do
+  "$SCRIPT_DIR/spoof-device.sh" "redroid-$i" "$((i - 1))" &
+done
+wait
+
+# Wait for restarted containers to be running again
+echo ""
+echo "Waiting for restarted containers..."
+sleep 3
+for attempt in $(seq 1 15); do
+  RUNNING=$(docker ps --filter "name=redroid-" --filter "status=running" --format "{{.Names}}" | wc -l)
+  if [ "$RUNNING" -ge "$COUNT" ]; then
+    echo "All $COUNT container(s) running with spoofed identity."
+    break
+  fi
+  echo "  Waiting... ($RUNNING/$COUNT running)"
+  sleep 2
+done
 
 echo ""
 echo "Instance yang berjalan:"
 docker ps --filter "name=redroid-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-
-echo ""
-echo "Selanjutnya: ./scripts/adb-connect.sh $COUNT"

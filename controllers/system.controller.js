@@ -111,18 +111,21 @@ const startSystem = async (req, res) => {
     console.log(`Starting ${count} instance(s)...${profileArg ? ` profiles: ${profiles.join(',')}` : ''}`);
     await runCommand(`./scripts/start-redroid.sh ${count}${profileArg}`);
 
-    console.log('Connecting ADB...');
-    await runCommand(`./scripts/adb-connect.sh ${count}`);
-
     const ports = Array.from({ length: count }, (_, i) => 5555 + i);
 
+    // Respond immediately — ADB setup runs in background
     res.json({
       success: true,
-      message: `Started ${count} instance(s)`,
+      message: `Started ${count} instance(s). ADB setup running in background...`,
       count,
       ports,
       timestamp: new Date().toISOString(),
     });
+
+    // Run ADB connect in background (don't await)
+    runCommand(`./scripts/adb-connect.sh ${count}`)
+      .then(() => console.log(`ADB connect completed for ${count} instance(s)`))
+      .catch((err) => console.error('ADB connect background error:', err.message));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
