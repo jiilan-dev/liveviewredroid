@@ -1,0 +1,12 @@
+[Unit]
+Description=Fix Docker nftables forwarding rules for Redroid internet
+After=docker.service nftables.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /home/palvia/projects/bot/liveviewredroid/scripts/fix-docker-network.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
