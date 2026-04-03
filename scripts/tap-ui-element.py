@@ -31,10 +31,19 @@ def center_of(bounds):
     return (x1 + x2) // 2, (y1 + y2) // 2
 
 
+def normalize_text(value):
+    return " ".join((value or "").strip().lower().split())
+
+
 def node_matches(node, selector_text, selector_id, selector_desc):
     text = (node.attrib.get("text") or "").strip()
     res_id = (node.attrib.get("resource-id") or "").strip()
     desc = (node.attrib.get("content-desc") or "").strip()
+
+    text_norm = normalize_text(text)
+    desc_norm = normalize_text(desc)
+    selector_text_norm = normalize_text(selector_text)
+    selector_desc_norm = normalize_text(selector_desc)
 
     if selector_id and res_id == selector_id:
         return True
@@ -42,10 +51,20 @@ def node_matches(node, selector_text, selector_id, selector_desc):
     if selector_desc and desc.lower() == selector_desc.lower():
         return True
 
+    if selector_desc_norm and (desc_norm == selector_desc_norm or selector_desc_norm in desc_norm):
+        return True
+
     if selector_text:
         if text.lower() == selector_text.lower():
             return True
         if desc.lower() == selector_text.lower():
+            return True
+
+    # Fallback matching for slightly different UI strings/whitespace.
+    if selector_text_norm:
+        if text_norm == selector_text_norm or selector_text_norm in text_norm:
+            return True
+        if desc_norm == selector_text_norm or selector_text_norm in desc_norm:
             return True
 
     return False

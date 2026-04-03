@@ -3,6 +3,8 @@ const { db } = require('../db');
 const { automationLogs, redroidInstances } = require('../db/schema');
 const { desc, eq } = require('drizzle-orm');
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Shared helper: get running redroid containers as [{name, port}]
 const getRunningInstances = async () => {
   const out = await runCommand(
@@ -60,6 +62,19 @@ const executeAutomation = async (req, res) => {
         await runCommand(
           `ADB_SERIAL=${serial} ./scripts/open-liveview.sh "${apk}" "${packageName || ''}"`
         );
+
+        // Prevent Android immersive tutorial overlay from blocking target buttons.
+        await runCommand(
+          `adb -s ${serial} shell settings put secure immersive_mode_confirmations confirmed`
+        ).catch(() => null);
+
+        // Best-effort dismiss in case overlay is already visible.
+        await runCommand(
+          `python3 ./scripts/tap-ui-element.py --serial ${serial} --text "GOT IT" --timeout 4`
+        ).catch(() => null);
+
+        // Give app transition a moment before UI dump/tap starts.
+        await sleep(1500);
         await runCommand(
           `python3 ./scripts/tap-ui-element.py --serial ${serial} --text "${text}" --timeout ${wait}`
         );
@@ -83,9 +98,13 @@ const executeAutomation = async (req, res) => {
       }
     }
 
-    const allFailed = results.every((r) => r.status === 'error');
-    res.status(allFailed ? 500 : 200).json({
+    const successCount = results.filter((r) => r.status === 'success').length;
+    const allFailed = successCount === 0;
+    res.json({
       success: !allFailed,
+      message: allFailed
+        ? 'Automation finished, but all instances failed. Check per-instance errors.'
+        : `Automation finished: ${successCount}/${results.length} instance(s) succeeded`,
       buttonText: text,
       results,
       timestamp: new Date().toISOString(),
@@ -138,9 +157,13 @@ const tapElement = async (req, res) => {
       }
     }
 
-    const allFailed = results.every((r) => r.status === 'error');
-    res.status(allFailed ? 500 : 200).json({
+    const successCount = results.filter((r) => r.status === 'success').length;
+    const allFailed = successCount === 0;
+    res.json({
       success: !allFailed,
+      message: allFailed
+        ? 'Tap finished, but all instances failed. Check per-instance errors.'
+        : `Tap finished: ${successCount}/${results.length} instance(s) succeeded`,
       results,
       timestamp: new Date().toISOString(),
     });

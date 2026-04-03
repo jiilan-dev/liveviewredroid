@@ -34,6 +34,9 @@ const launchApp = async (req, res) => {
         await runCommand(
           `ADB_SERIAL=${serial} ./scripts/open-liveview.sh "${apk}" "${packageName || ''}"`
         );
+        await runCommand(
+          `adb -s ${serial} shell settings put secure immersive_mode_confirmations confirmed`
+        ).catch(() => null);
         return serial;
       })
     );
