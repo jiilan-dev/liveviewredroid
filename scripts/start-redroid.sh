@@ -28,6 +28,8 @@ for i in $(seq 1 "$COUNT"); do
     --name "$NAME" \
     --privileged \
     --restart unless-stopped \
+    --dns 8.8.8.8 \
+    --dns 8.8.4.4 \
     -p "$PORT:5555" \
     -v "$(pwd)/$DATA_DIR:/data" \
     redroid/redroid:11.0.0-latest \
