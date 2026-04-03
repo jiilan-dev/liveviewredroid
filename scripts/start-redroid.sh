@@ -2,18 +2,35 @@
 set -euo pipefail
 
 COUNT="${1:-1}"
+# Optional: comma-separated profile names for each instance
+# e.g. "profile-a,profile-b" means instance-1 uses profile-a, instance-2 uses profile-b
+PROFILE_MAP="${2:-}"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "Docker belum terpasang. Install Docker dulu ya."
   exit 1
 fi
 
+# Parse profile map into array
+IFS=',' read -r -a PROFILES <<< "$PROFILE_MAP"
+
 echo "Menjalankan $COUNT instance redroid..."
+
+PROFILES_BASE="./data/profiles"
 
 for i in $(seq 1 "$COUNT"); do
   PORT=$((5554 + i))
   NAME="redroid-$i"
-  DATA_DIR="./data/instance-$i"
+
+  # Determine data directory: use profile if provided, else legacy instance-N
+  IDX=$((i - 1))
+  if [ -n "${PROFILES[$IDX]:-}" ]; then
+    DATA_DIR="$PROFILES_BASE/${PROFILES[$IDX]}"
+    echo "Instance $i → profile: ${PROFILES[$IDX]}"
+  else
+    DATA_DIR="./data/instance-$i"
+    echo "Instance $i → default: instance-$i"
+  fi
 
   mkdir -p "$DATA_DIR"
 

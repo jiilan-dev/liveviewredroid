@@ -97,8 +97,19 @@ const startSystem = async (req, res) => {
       10
     );
 
-    console.log(`Starting ${count} instance(s)...`);
-    await runCommand(`./scripts/start-redroid.sh ${count}`);
+    // Optional profiles array: ["profile-a", "profile-b", ...]
+    const profiles = Array.isArray(req.body.profiles) ? req.body.profiles : [];
+    // Validate profile names
+    for (const p of profiles) {
+      if (typeof p !== 'string' || (p && !/^[a-zA-Z0-9_-]+$/.test(p))) {
+        return res.status(400).json({ error: `Invalid profile name: ${p}` });
+      }
+    }
+
+    const profileArg = profiles.length > 0 ? ` "${profiles.join(',')}"` : '';
+
+    console.log(`Starting ${count} instance(s)...${profileArg ? ` profiles: ${profiles.join(',')}` : ''}`);
+    await runCommand(`./scripts/start-redroid.sh ${count}${profileArg}`);
 
     console.log('Connecting ADB...');
     await runCommand(`./scripts/adb-connect.sh ${count}`);
