@@ -16,6 +16,7 @@ const authRoutes = require('./routes/auth.routes');
 const systemRoutes = require('./routes/system.routes');
 const appRoutes = require('./routes/app.routes');
 const automationRoutes = require('./routes/automation.routes');
+const internetRoutes = require('./routes/internet.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,6 +34,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/app', appRoutes);
 app.use('/api/automation', automationRoutes);
+app.use('/api/internet', internetRoutes);
 
 // Swagger UI
 const swaggerDocument = yaml.load(fs.readFileSync(path.join(__dirname, 'openapi.yml'), 'utf8'));
