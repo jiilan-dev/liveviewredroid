@@ -1,5 +1,5 @@
 const express = require('express');
-const { getStatus, startSystem, stopSystem, getOverview, getInstances, getScreenshot, sendInput } = require('../controllers/system.controller');
+const { getStatus, startSystem, stopSystem, getOverview, getInstances, getScreenshot, sendInput, getLocalIp } = require('../controllers/system.controller');
 const { verifyAuth } = require('../middleware/auth.middleware');
 
 const router = express.Router();
@@ -11,5 +11,6 @@ router.get('/screenshot/:port', verifyAuth, getScreenshot);
 router.post('/start', verifyAuth, startSystem);
 router.post('/stop', verifyAuth, stopSystem);
 router.post('/input/:port', verifyAuth, sendInput);
+router.get('/local-ip', verifyAuth, getLocalIp);
 
 module.exports = router;

@@ -1,4 +1,5 @@
 const { spawn } = require('child_process');
+const os = require('os');
 const { runCommand } = require('../lib/utils');
 const { db } = require('../db');
 const { redroidInstances, automationLogs } = require('../db/schema');
@@ -258,4 +259,16 @@ const sendInput = async (req, res) => {
   }
 };
 
-module.exports = { getStatus, startSystem, stopSystem, getOverview, getInstances, getScreenshot, sendInput };
+const getLocalIp = (req, res) => {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return res.json({ ip: iface.address, mac: iface.mac });
+      }
+    }
+  }
+  res.json({ ip: '127.0.0.1', mac: '00:00:00:00:00:00' });
+};
+
+module.exports = { getStatus, startSystem, stopSystem, getOverview, getInstances, getScreenshot, sendInput, getLocalIp };
