@@ -24,25 +24,7 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(bodyParser.json());
-
-const allowedOrigins = (process.env.CORS_ORIGIN || 'https://mrwawan.sapacode.id')
-  .split(',')
-  .map((s) => s.trim());
-
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Allow all in case of mismatch — tighten later
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
-
+app.use(cors());
 app.use(morgan('combined'));
 
 // Routes
