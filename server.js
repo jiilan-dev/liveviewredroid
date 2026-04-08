@@ -43,9 +43,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Explicit preflight handler
-app.options('*', cors());
-
 app.use(morgan('combined'));
 
 // Routes
