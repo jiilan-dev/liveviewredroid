@@ -1,7 +1,6 @@
 require('dotenv').config();
 
 const express = require('express');
-const cors = require('cors');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
 const swaggerUi = require('swagger-ui-express');
@@ -24,7 +23,7 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(bodyParser.json());
-app.use(cors());
+// CORS handled by Nginx — no Express cors middleware
 app.use(morgan('combined'));
 
 // Routes
