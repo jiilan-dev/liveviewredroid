@@ -1,17 +1,4 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: liveview-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: palvia
-      POSTGRES_PASSWORD: soleplayer
-      POSTGRES_DB: liveviewbot
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
   redroid:
     image: redroid/redroid:11.0.0-latest
     container_name: redroid
@@ -26,6 +13,3 @@ services:
       - androidboot.redroid_height=1280
       - androidboot.redroid_dpi=320
       - androidboot.redroid_gpu_mode=guest
-
-volumes:
-  pgdata:
